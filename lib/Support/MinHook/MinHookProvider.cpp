@@ -1,3 +1,6 @@
+// MinHook is Windows-only - this file is excluded from macOS builds
+#if defined(_WIN32) || defined(_WIN64)
+
 #include "MinHookProvider.hpp"
 
 #include <MinHook.h>
@@ -44,3 +47,5 @@ bool Support::MinHookProvider::HookDetach(uintptr_t aAddress)
 
     return true;
 }
+
+#endif // Windows

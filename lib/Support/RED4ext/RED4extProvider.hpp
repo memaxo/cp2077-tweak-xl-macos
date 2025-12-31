@@ -48,7 +48,14 @@ public:
 
     auto RegisterScripts(const std::filesystem::path& aPath)
     {
+#if defined(_WIN32) || defined(_WIN64)
         m_sdk->scripts->Add(m_plugin, aPath.c_str());
+#else
+        // On macOS, path.c_str() returns char*, but SDK expects wchar_t*
+        // Convert to wstring first
+        std::wstring widePath(aPath.string().begin(), aPath.string().end());
+        m_sdk->scripts->Add(m_plugin, widePath.c_str());
+#endif
         return Defer(this);
     }
 

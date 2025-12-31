@@ -384,7 +384,7 @@ Core::SharedPtr<Red::TweakSource> Red::TweakParser::Parse(const std::filesystem:
 
         if (!success || !input.empty())
         {
-            throw std::exception(FormatError(aPath, input.position(), "Unexpected end of file").c_str());
+            throw std::runtime_error(FormatError(aPath, input.position(), "Unexpected end of file"));
         }
     }
     catch (const tao::pegtl::parse_error& e)
@@ -392,7 +392,7 @@ Core::SharedPtr<Red::TweakSource> Red::TweakParser::Parse(const std::filesystem:
         const auto& position = e.positions().front();
         const auto& message = e.message();
 
-        throw std::exception(FormatError(aPath, position, message).c_str());
+        throw std::runtime_error(FormatError(aPath, position, message));
     }
 
     return Core::MakeShared<TweakSource>(std::move(package));

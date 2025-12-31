@@ -95,9 +95,9 @@ std::string FormatString(const std::string& aInput, const InstanceData& aData)
         const auto it = aData.find(attr);
         if (it != aData.end())
         {
-            if (it.value().IsScalar())
+            if (it->second.IsScalar())
             {
-                value = it.value().Scalar().c_str();
+                value = it->second.Scalar().c_str();
             }
         }
 

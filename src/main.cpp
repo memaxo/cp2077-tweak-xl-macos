@@ -49,7 +49,8 @@ RED4EXT_C_EXPORT uint32_t RED4EXT_CALL Supports()
     return RED4EXT_API_VERSION_LATEST;
 }
 
-// ASI
+#if defined(_WIN32) || defined(_WIN64)
+// ASI (Windows only)
 
 BOOL APIENTRY DllMain(HMODULE aHandle, DWORD aReason, LPVOID)
 {
@@ -88,3 +89,6 @@ BOOL APIENTRY DllMain(HMODULE aHandle, DWORD aReason, LPVOID)
 
     return TRUE;
 }
+#else
+// macOS: No ASI loader support - RED4ext handles plugin lifecycle
+#endif

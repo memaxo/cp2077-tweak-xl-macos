@@ -215,7 +215,7 @@ Core::SharedPtr<Red::TweakDBRecordInfo> Red::TweakDBReflection::CollectRecordInf
         {
             recordInfo->extraFlats = true;
 
-            for (const auto& extraFlat : extraFlatsIt.value())
+            for (const auto& extraFlat : extraFlatsIt->second)
             {
                 auto propInfo = Red::MakeInstance<Red::TweakDBPropertyInfo>();
                 propInfo->name = Red::CName(extraFlat.appendix.c_str() + 1);

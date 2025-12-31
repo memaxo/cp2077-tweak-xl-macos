@@ -238,7 +238,7 @@ const Red::CClass* Red::TweakDBManager::GetRecordType(const Red::TweakDBManager:
         const auto it = aBatch->records.find(aRecordId);
 
         if (it != aBatch->records.end())
-            recordType = it.value()->type;
+            recordType = it->second->type;
     }
 
     return recordType;
