@@ -2,6 +2,7 @@
 #include "App/Project.hpp"
 #include "Core/Facades/Hook.hpp"
 #include "Core/Facades/Runtime.hpp"
+#include <iostream>
 
 namespace
 {
@@ -13,23 +14,40 @@ Core::UniquePtr<App::Application> g_app;
 RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::EMainReason aReason,
                                         const RED4ext::Sdk* aSdk)
 {
-    switch (aReason)
-    {
-    case RED4ext::EMainReason::Load:
-    {
-        g_app = Core::MakeUnique<App::Application>(aHandle, aSdk);
-        g_app->Bootstrap();
-        break;
-    }
-    case RED4ext::EMainReason::Unload:
-    {
-        g_app->Shutdown();
-        g_app = nullptr;
-        break;
-    }
-    }
+    try {
+        std::cerr << "[TweakXL] Main called with reason: " << static_cast<int>(aReason) << std::endl;
+        
+        switch (aReason)
+        {
+        case RED4ext::EMainReason::Load:
+        {
+            std::cerr << "[TweakXL] Creating Application..." << std::endl;
+            g_app = Core::MakeUnique<App::Application>(aHandle, aSdk);
+            std::cerr << "[TweakXL] Application created, calling Bootstrap..." << std::endl;
+            g_app->Bootstrap();
+            std::cerr << "[TweakXL] Bootstrap complete" << std::endl;
+            break;
+        }
+        case RED4ext::EMainReason::Unload:
+        {
+            std::cerr << "[TweakXL] Shutting down..." << std::endl;
+            g_app->Shutdown();
+            g_app = nullptr;
+            std::cerr << "[TweakXL] Shutdown complete" << std::endl;
+            break;
+        }
+        }
 
-    return true;
+        return true;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[TweakXL] ERROR: Exception in Main: " << e.what() << std::endl;
+        return false;
+    }
+    catch (...) {
+        std::cerr << "[TweakXL] ERROR: Unknown exception in Main" << std::endl;
+        return false;
+    }
 }
 
 RED4EXT_C_EXPORT void RED4EXT_CALL Query(RED4ext::PluginInfo* aInfo)

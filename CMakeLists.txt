@@ -13,7 +13,9 @@ if(APPLE)
     set(OUTPUT_NAME "TweakXL")
     
     # macOS linker flags for dylib
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flat_namespace")
+    # Note: -flat_namespace removed because it causes TweakXL to use RED4ext's
+    # SDK symbols instead of its own modified versions
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
 else()
     message(STATUS "Building TweakXL for Windows")
     add_compile_definitions(WINVER=0x0601)
@@ -112,7 +114,11 @@ set(TWEAKXL_SOURCES
 )
 
 # Platform-specific sources
-if(NOT APPLE)
+if(APPLE)
+    list(APPEND TWEAKXL_SOURCES
+        lib/Support/macOS/TweakXLAddressResolver.cpp
+    )
+else()
     list(APPEND TWEAKXL_SOURCES
         lib/Support/MinHook/MinHookProvider.cpp
     )
@@ -169,6 +175,8 @@ if(APPLE)
         -fno-rtti
         -fexceptions
         -Wno-deprecated-declarations
+        -fvisibility=hidden
+        -fvisibility-inlines-hidden
     )
 else()
     target_compile_options(TweakXL PRIVATE

@@ -22,6 +22,10 @@ namespace Core::Platform
 using ModuleHandle = void*;
 
 // Get the path of a loaded module
+// Note: On macOS, aHandle should be either:
+// 1. nullptr - returns main executable path
+// 2. An address within the module (e.g., &SomeFunction) - NOT a dlopen handle!
+//    Since dlopen handles are opaque on macOS, we can't use them directly with dladdr
 inline std::string GetModuleFileName(ModuleHandle aHandle)
 {
     if (!aHandle)
@@ -48,13 +52,16 @@ inline std::string GetModuleFileName(ModuleHandle aHandle)
         return "";
     }
     
-    // Get path from dlopen handle using dladdr
+    // Try to get path using dladdr with the handle as an address
+    // This works if aHandle is an actual address within the library
     Dl_info info;
     if (dladdr(aHandle, &info) && info.dli_fname)
     {
         return info.dli_fname;
     }
     
+    // Fallback: The handle might be a dlopen handle or some other value
+    // that's not a valid address. Return empty string.
     return "";
 }
 

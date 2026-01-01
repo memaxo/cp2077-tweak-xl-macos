@@ -18,6 +18,14 @@
 #include <utility>
 #include <vector>
 
+// macOS: Include address resolver override BEFORE RED4ext SDK
+// This provides custom address resolution to bypass the SDK's requirement
+// for 126+ addresses that we haven't reverse engineered yet.
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <RED4ext/Detail/Memory.hpp>
+#include "Support/macOS/AddressResolverOverride.hpp"
+#endif
+
 #include <RED4ext/RED4ext.hpp>
 
 #include <RED4ext/Relocation.hpp>

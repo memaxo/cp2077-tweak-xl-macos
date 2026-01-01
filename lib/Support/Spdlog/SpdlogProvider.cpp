@@ -4,6 +4,7 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <iostream>
 
 void Support::SpdlogProvider::OnInitialize()
 {
@@ -83,25 +84,44 @@ void Support::SpdlogProvider::OnInitialize()
 
 void Support::SpdlogProvider::LogInfo(const std::string_view& aMessage)
 {
+#if !defined(_WIN32) && !defined(_WIN64)
+    // macOS: Temporarily skip spdlog and use stderr
+    std::cerr << "[TweakXL INFO] " << aMessage << std::endl;
+#else
     spdlog::default_logger_raw()->info(aMessage);
+#endif
 }
 
 void Support::SpdlogProvider::LogWarning(const std::string_view& aMessage)
 {
+#if !defined(_WIN32) && !defined(_WIN64)
+    std::cerr << "[TweakXL WARN] " << aMessage << std::endl;
+#else
     spdlog::default_logger_raw()->warn(aMessage);
+#endif
 }
 
 void Support::SpdlogProvider::LogError(const std::string_view& aMessage)
 {
+#if !defined(_WIN32) && !defined(_WIN64)
+    std::cerr << "[TweakXL ERROR] " << aMessage << std::endl;
+#else
     spdlog::default_logger_raw()->error(aMessage);
+#endif
 }
 
 void Support::SpdlogProvider::LogDebug(const std::string_view& aMessage)
 {
+#if !defined(_WIN32) && !defined(_WIN64)
+    std::cerr << "[TweakXL DEBUG] " << aMessage << std::endl;
+#else
     spdlog::default_logger_raw()->debug(aMessage);
+#endif
 }
 
 void Support::SpdlogProvider::LogFlush()
 {
+#if defined(_WIN32) || defined(_WIN64)
     spdlog::default_logger_raw()->flush();
+#endif
 }

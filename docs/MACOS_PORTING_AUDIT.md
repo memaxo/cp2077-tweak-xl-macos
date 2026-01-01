@@ -1,304 +1,107 @@
-# TweakXL macOS Porting Audit
+# TweakXL macOS Port - Testing Audit
 
-**Date:** December 31, 2025  
-**Status:** Analysis Complete
+## Test Date: 2025-12-31
 
----
+## Test Results Summary
 
-## Executive Summary
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Installation | **PASS** | TweakXL.dylib installs correctly |
+| Plugin Loading | **PASS** | RED4ext finds and loads TweakXL |
+| SDK Address Resolution | **FAIL** | SDK requires 126+ addresses, only 9 available |
+| In-Game Testing | **BLOCKED** | Crash before game starts |
 
-TweakXL is a RED4ext plugin that modifies Cyberpunk 2077's TweakDB (game database). Porting to macOS requires:
+## Detailed Findings
 
-1. **Build system migration** (xmake → CMake)
-2. **MinHook replacement** (Windows-only) → Frida or RED4ext hooking
-3. **Windows API abstraction** (WIL, version info, module loading)
-4. **SDK replacement** with macOS fork
+### Phase 1: Installation - PASS
 
-### Estimated Effort: **Medium** (3-5 days)
-
----
-
-## Architecture Overview
-
+TweakXL.dylib successfully installed to:
 ```
-TweakXL
-├── RED4ext Plugin Interface (main.cpp)
-│   └── DllMain for ASI loading (Windows-specific)
-├── Core Library (lib/Core/)
-│   ├── Hooking (MinHook-based)
-│   ├── Runtime (Windows module APIs)
-│   └── Memory (Address resolution)
-├── Support Providers (lib/Support/)
-│   ├── MinHookProvider (NEEDS REPLACEMENT)
-│   ├── RED4extProvider (uses RED4ext SDK hooking)
-│   └── SpdlogProvider
-└── App Logic (src/App/)
-    ├── TweakService (main logic)
-    └── Tweaks/ (YAML/RED parsing - portable)
+<game>/red4ext/plugins/TweakXL/TweakXL.dylib
 ```
 
----
-
-## Platform-Specific Code Analysis
-
-### 🔴 Critical - Must Change
-
-#### 1. MinHook Dependency
-**Files:** `lib/Support/MinHook/MinHookProvider.cpp`
-
-```cpp
-#include <MinHook.h>  // Windows-only hooking library
-
-MH_Initialize();
-MH_CreateHook(address, callback, &original);
-MH_EnableHook(address);
+Directory structure created:
+```
+red4ext/plugins/TweakXL/
+├── TweakXL.dylib (6.6MB, arm64)
+├── Data/
+└── Scripts/
 ```
 
-**Solution:** Replace with `RED4extProvider` which uses RED4ext SDK's hooking (already Frida-compatible on macOS).
+### Phase 2: Plugin Loading - PASS
 
-#### 2. DllMain Entry Point
-**File:** `src/main.cpp`
-
-```cpp
-BOOL APIENTRY DllMain(HMODULE aHandle, DWORD aReason, LPVOID)
-{
-    // ASI loader support
-}
+RED4ext log shows successful plugin discovery:
+```
+[RED4ext] [info] Loading plugins...
+[RED4ext] [info] Loading plugin from '.../red4ext/plugins/TweakXL/TweakXL.dylib'...
 ```
 
-**Solution:** Add `__attribute__((constructor/destructor))` for macOS dylib loading.
+### Phase 3: SDK Address Resolution - FAIL
 
-#### 3. Windows Module APIs
-**File:** `lib/Core/Runtime/HostImage.cpp`
+When TweakXL initializes, it uses RED4ext.SDK functions that require address resolution.
+The SDK calls `RED4ext_ResolveAddress()` to look up function addresses by hash.
 
-```cpp
-GetModuleHandleW(nullptr);
-wil::GetModuleFileNameW(handle, filePath);
-GetFileVersionInfoSizeW(filePath.c_str(), nullptr);
-GetFileVersionInfoW(filePath.c_str(), 0, size, data.get());
-VerQueryValueW(data.get(), L"\\", ...);
+**Error encountered:**
+```
+[RED4ext: Address Resolver] Could not get the 'Query' function for the current mod.
 ```
 
-**Solution:** macOS equivalents using `dladdr`, `_NSGetExecutablePath`, `CFBundle` version APIs.
+**Root cause:**
+- SDK requires hash `0x1817231D` = `CBaseFunction_InternalExecute`
+- This address is not in our addresses.json file
+- The SDK has 126+ address hashes that need resolution
+- We only have 9 addresses (RED4ext core hooks)
 
-#### 4. WIL (Windows Implementation Library)
-**File:** `lib/Core/Win.hpp`
-
-```cpp
-#include <wil/stl.h>
-#include <wil/win32_helpers.h>
+**RED4ext log showing missing address:**
+```
+[RED4ext] [warning] Could not resolve hash 0x1817231D - no symbol mapping or address entry
 ```
 
-**Solution:** Create `lib/Core/Platform.hpp` with macOS equivalents or remove WIL dependency.
+### Phase 4: In-Game Testing - BLOCKED
 
-### 🟡 Moderate - Conditional Compilation
+Cannot complete in-game testing due to SDK address resolution failure.
+Game terminates before reaching main menu.
 
-#### 5. Wide String Usage
-**Files:** Multiple
+## Required Work to Complete TweakXL Port
 
-```cpp
-std::wstring filePath;
-IsEXE(L"Cyberpunk2077.exe");
-aInfo->name = App::Project::NameW;  // Wide string constants
-```
+### Option A: Resolve All SDK Addresses (Comprehensive)
+- Reverse engineer 117 additional addresses
+- Estimated time: 40-80 hours
+- Result: Full TweakXL functionality
 
-**Solution:** Use narrow strings on macOS, platform guards around wide string usage.
+### Option B: Custom Address Resolver (Recommended)
+- Implement `AddressResolverOverride` in TweakXL
+- Only resolve addresses TweakXL actually uses
+- Estimated time: 4-8 hours
+- Result: TweakXL-specific functionality only
 
-#### 6. System Links
-**File:** `xmake.lua`
+### Option C: Stub Unused SDK Functions
+- Identify which SDK functions TweakXL uses
+- Provide stub implementations or disable features
+- Estimated time: 8-16 hours
+- Result: Partial TweakXL functionality
 
-```lua
-add_syslinks("Version", "User32")  -- Windows libraries
-```
+## Key SDK Addresses Needed
 
-**Solution:** CMake with conditional linking (`CoreFoundation`, `dl` on macOS).
+Based on TweakXL's usage, these are likely the most critical addresses:
 
-#### 7. Address Resolution
-**File:** `lib/Core/Raw.hpp`
-
-```cpp
-static const auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-```
-
-**Solution:** Use `_dyld_get_image_header(0)` on macOS.
-
-### 🟢 Portable - No Changes Needed
-
-- **YAML parsing** (`yaml-cpp`) - Cross-platform
-- **PEGTL** (Parser Expression Grammar) - Header-only, portable
-- **nameof** - Header-only, portable
-- **semver** - Header-only, portable
-- **TweakDB logic** - Pure C++, uses RED4ext SDK types
-- **File I/O** - Standard `<filesystem>` usage
-
----
-
-## Dependencies Analysis
-
-| Dependency | Type | macOS Status |
-|------------|------|--------------|
-| RED4ext.SDK | Submodule | ⚠️ Replace with `memaxo/RED4ext.SDK-macos` |
-| hopscotch-map | Package (xmake) | ✅ Portable (header-only) |
-| minhook | Package (xmake) | ❌ Windows-only → Remove |
-| spdlog | Package (xmake) | ✅ Portable |
-| tiltedcore | Package (xmake) | ⚠️ May have Windows code |
-| yaml-cpp | Package (xmake) | ✅ Portable |
-| nameof | Submodule | ✅ Header-only |
-| pegtl | Submodule | ✅ Header-only |
-| semver | Submodule | ✅ Header-only |
-| wil | Submodule | ❌ Windows-only → Remove/Replace |
-
----
-
-## Required Changes
-
-### Phase 1: Build System (Day 1)
-
-1. **Create CMakeLists.txt** replacing xmake.lua
-2. **Configure dependencies:**
-   - Replace RED4ext.SDK submodule URL
-   - Remove MinHook, WIL
-   - Add platform detection
-
-### Phase 2: Platform Abstraction (Day 2)
-
-1. **Create `lib/Core/Platform.hpp`:**
-   ```cpp
-   #if defined(_WIN32)
-   #include "Core/Win.hpp"
-   #else
-   #include "Core/macOS.hpp"  // NEW
-   #endif
-   ```
-
-2. **Create `lib/Core/macOS.hpp`:**
-   - `GetModuleHandle` → `dlopen/dladdr`
-   - `GetModuleFileName` → `_NSGetExecutablePath`
-   - `GetFileVersionInfo` → `CFBundle` APIs
-
-3. **Update `lib/Core/Runtime/HostImage.cpp`:**
-   - Platform-specific module loading
-   - Version extraction from Info.plist
-
-### Phase 3: Hooking System (Day 2-3)
-
-1. **Modify `lib/Support/MinHook/MinHookProvider.cpp`:**
-   - Add platform guard
-   - On macOS, redirect to RED4extProvider (which uses Frida)
-
-2. **Or simpler:** Always use `RED4extProvider` on macOS:
-   ```cpp
-   #ifdef __APPLE__
-   // MinHook not available, RED4extProvider handles hooking via RED4ext SDK
-   #endif
-   ```
-
-### Phase 4: Entry Point (Day 3)
-
-1. **Update `src/main.cpp`:**
-   ```cpp
-   #ifdef __APPLE__
-   __attribute__((constructor))
-   static void TweakXL_Init() {
-       // Initialization code
-   }
-   
-   __attribute__((destructor))
-   static void TweakXL_Fini() {
-       // Cleanup code
-   }
-   #else
-   BOOL APIENTRY DllMain(...) { ... }
-   #endif
-   ```
-
-### Phase 5: Testing (Day 4-5)
-
-1. Build and verify compilation
-2. Test RED4ext plugin loading
-3. Test TweakDB modifications
-4. Test YAML/RED file parsing
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `xmake.lua` → `CMakeLists.txt` | Complete rewrite |
-| `src/main.cpp` | Add macOS constructor/destructor |
-| `src/pch.hpp` | Add platform guards |
-| `lib/Core/Win.hpp` | Rename to Platform.hpp, add macOS |
-| `lib/Core/Raw.hpp` | Platform-specific base address |
-| `lib/Core/Runtime/HostImage.cpp` | macOS module/version APIs |
-| `lib/Core/Runtime/ModuleImage.cpp` | macOS module path |
-| `lib/Core/Facades/Runtime.hpp` | Remove wide string from macOS |
-| `lib/Support/MinHook/*` | Platform guards or remove |
-| `src/App/Application.hpp` | Remove HMODULE on macOS |
-
----
-
-## New Files to Create
-
-| File | Purpose |
-|------|---------|
-| `CMakeLists.txt` | Build system |
-| `lib/Core/macOS.hpp` | macOS platform compatibility |
-| `lib/Core/macOS.cpp` | macOS implementations |
-| `cmake/` | CMake modules |
-
----
-
-## Address Library
-
-TweakXL uses these addresses (from `src/Red/Addresses/Library.hpp`):
-
-| Hash | Function |
-|------|----------|
-| `240386859` | Main |
-| `1299190886` | StatsDataSystem_InitializeRecords |
-| `3652194890` | StatsDataSystem_InitializeParams |
-| `1444748215` | StatsDataSystem_GetStatRange |
-| `3123320294` | StatsDataSystem_GetStatFlags |
-| `2954893634` | StatsDataSystem_CheckStatFlag |
-| `3062572522` | TweakDB_Init |
-| `3602585178` | TweakDB_Load |
-| `3512345737` | TweakDB_TryLoad |
-| `838931066` | TweakDB_CreateRecord |
-| `326438016` | TweakDBID_Derive |
-
-**Action:** Add these to RED4ext's address database for macOS.
-
----
-
-## Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| MinHook removal breaks hooking | Low | High | Use RED4extProvider (already works) |
-| WIL removal causes issues | Medium | Medium | Create minimal macOS equivalents |
-| tiltedcore has Windows code | Medium | Low | Evaluate or remove dependency |
-| Address resolution fails | Low | High | Already solved in RED4ext port |
-
----
-
-## Recommendation
-
-**Start with TweakXL** because:
-1. It uses RED4ext SDK's hooking API → Already Frida-compatible
-2. Most code is portable C++ (YAML, TweakDB logic)
-3. Windows-specific code is isolated in `lib/Core/`
-4. Smaller scope than ArchiveXL
-
-**Key insight:** TweakXL's `RED4extProvider` already wraps RED4ext's hooking API, which means it will automatically use Frida on macOS without code changes to the hooking logic itself.
-
----
+| Function | Hash | Purpose |
+|----------|------|---------|
+| CBaseFunction_InternalExecute | 0x1817231D | Script function calls |
+| TweakDB_Init | 0xB6832FEA | TweakDB initialization |
+| TweakDB_Load | 0xD6B1DB5A | TweakDB loading |
+| TweakDB_CreateRecord | 0x31FB0F6A | Record creation |
+| ResourceDepot_Get | ? | Resource loading |
+| RTTI_GetClass | ? | Type information |
 
 ## Next Steps
 
-1. Fork `psiberx/cp2077-tweak-xl`
-2. Create CMakeLists.txt
-3. Replace RED4ext.SDK submodule
-4. Add platform abstraction layer
-5. Test build on macOS
-6. Verify hooks work via RED4ext's Frida integration
+1. **Immediate**: Add TweakDB addresses to manual_addresses_template.json
+2. **Short-term**: Implement custom address resolver for TweakXL
+3. **Long-term**: Resolve full SDK address set for complete mod compatibility
+
+## Files Modified During Testing
+
+- `/Users/jackmazac/Development/RED4ext/scripts/frida/red4ext_hooks.js` - Added TweakDB hooks (disabled)
+- `<game>/r6/tweaks/test_tweak.yaml` - Test YAML tweak file
+- `<game>/red4ext/plugins/TweakXL/` - TweakXL installation
