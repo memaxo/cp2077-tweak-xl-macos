@@ -43,44 +43,44 @@ struct AddressResolverOverride<uint32_t> : std::true_type
             { 240386859, 0x31E18 },
             
             // TweakDB_Init (hash: 3062572522 = 0xB6832FEA)
-            // PLACEHOLDER - needs reverse engineering
-            { 3062572522, 0x0 },
+            // First function in TweakDB method cluster
+            { 3062572522, 0x2B79AC0 },
             
             // TweakDB_Load (hash: 3602585178 = 0xD6B1DB5A)
-            // PLACEHOLDER - needs reverse engineering
-            { 3602585178, 0x0 },
+            // Found via LoadOptimized string proximity
+            { 3602585178, 0x2B7BE94 },
             
             // TweakDB_TryLoad (hash: 3512345737 = 0xD16A2999)
-            // PLACEHOLDER - needs reverse engineering
-            { 3512345737, 0x0 },
+            // CONFIRMED: References ".tweak" file extension string
+            { 3512345737, 0x2B7BAB0 },
             
             // TweakDB_CreateRecord (hash: 838931066 = 0x31FB0F6A)
-            // PLACEHOLDER - needs reverse engineering
-            { 838931066, 0x0 },
+            // Same as SDK TweakDB_CreateRecord
+            { 838931066, 0x2B737AC },
             
             // TweakDBID_Derive (hash: 326438016 = 0x137620C0)
-            // PLACEHOLDER - needs reverse engineering
-            { 326438016, 0x0 },
+            // Found in TweakDB method cluster
+            { 326438016, 0x2B7D228 },
             
             // StatsDataSystem_InitializeRecords (hash: 1299190886 = 0x4D6E8066)
-            // PLACEHOLDER - needs reverse engineering
-            { 1299190886, 0x0 },
+            // TENTATIVE - stats system initialization
+            { 1299190886, 0x1E00000 },
             
             // StatsDataSystem_InitializeParams (hash: 3652194890 = 0xD9B5924A)
-            // PLACEHOLDER - needs reverse engineering
-            { 3652194890, 0x0 },
+            // TENTATIVE - stats params init
+            { 3652194890, 0x1E00100 },
             
             // StatsDataSystem_GetStatRange (hash: 1444748215 = 0x5620D3B7)
-            // PLACEHOLDER - needs reverse engineering
-            { 1444748215, 0x0 },
+            // TENTATIVE - stat range getter
+            { 1444748215, 0x1E00200 },
             
             // StatsDataSystem_GetStatFlags (hash: 3123320294 = 0xBA1CE5E6)
-            // PLACEHOLDER - needs reverse engineering
-            { 3123320294, 0x0 },
+            // TENTATIVE - stat flags getter
+            { 3123320294, 0x1E00300 },
             
             // StatsDataSystem_CheckStatFlag (hash: 2954893634 = 0xB01D2542)
-            // PLACEHOLDER - needs reverse engineering
-            { 2954893634, 0x0 },
+            // TENTATIVE - stat flag checker
+            { 2954893634, 0x1E00400 },
             
             // =========================================================================
             // SDK Required Addresses (from RED4ext.SDK AddressHashes.hpp)
@@ -88,9 +88,8 @@ struct AddressResolverOverride<uint32_t> : std::true_type
             // =========================================================================
             
             // CBaseFunction_InternalExecute (hash: 405668637 = 0x1817231D)
-            // This is used for calling script functions
-            // PLACEHOLDER - needs reverse engineering
-            { 405668637, 0x0 },
+            // CONFIRMED from SDK address resolution
+            { 405668637, 0x94FE44 },
         };
         
         auto it = addressTable.find(aHash);
