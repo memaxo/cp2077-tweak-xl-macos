@@ -7,6 +7,7 @@
 namespace
 {
 Core::UniquePtr<App::Application> g_app;
+bool g_initialized = false;  // Guard against double initialization
 }
 
 // RED4ext
@@ -21,6 +22,14 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
         {
         case RED4ext::EMainReason::Load:
         {
+            // Guard against double initialization
+            if (g_initialized)
+            {
+                std::cerr << "[TweakXL] Already initialized, skipping duplicate Load" << std::endl;
+                return true;
+            }
+            g_initialized = true;
+            
             std::cerr << "[TweakXL] Creating Application..." << std::endl;
             g_app = Core::MakeUnique<App::Application>(aHandle, aSdk);
             std::cerr << "[TweakXL] Application created, calling Bootstrap..." << std::endl;
@@ -30,6 +39,14 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
         }
         case RED4ext::EMainReason::Unload:
         {
+            // Guard against double shutdown
+            if (!g_initialized || !g_app)
+            {
+                std::cerr << "[TweakXL] Not initialized or already shut down, skipping" << std::endl;
+                return true;
+            }
+            g_initialized = false;
+            
             std::cerr << "[TweakXL] Shutting down..." << std::endl;
             g_app->Shutdown();
             g_app = nullptr;

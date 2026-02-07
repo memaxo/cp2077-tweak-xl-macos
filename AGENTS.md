@@ -4,6 +4,10 @@
 
 TweakXL is a Cyberpunk 2077 mod that enables runtime modification of TweakDB values (game stats, items, vehicles). This port adapts the Windows plugin to macOS ARM64, using RED4ext for loading and Frida for hooking.
 
+## Current Status (Canonical)
+
+See `docs/STATUS.md` for the up-to-date macOS port status and links to the address update workflow docs.
+
 ## Development Practices
 
 ### macOS Porting

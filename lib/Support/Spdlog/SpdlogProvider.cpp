@@ -4,6 +4,7 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <fstream>
 #include <iostream>
 
 void Support::SpdlogProvider::OnInitialize()
@@ -64,6 +65,10 @@ void Support::SpdlogProvider::OnInitialize()
         logPath.replace_extension(logExtension);
     }
 
+    m_resolvedLogPath = logPath;
+
+#if defined(_WIN32) || defined(_WIN64)
+    // Windows: keep using spdlog file sink.
     auto sink = Core::MakeShared<spdlog::sinks::basic_file_sink_mt>(logPath.string(), true);
     auto logger = Core::MakeShared<spdlog::logger>("", spdlog::sinks_init_list{sink});
     logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%t] [%l] %v");
@@ -71,6 +76,14 @@ void Support::SpdlogProvider::OnInitialize()
 
     spdlog::set_default_logger(logger);
     spdlog::set_level(spdlog::level::trace);
+#else
+    // macOS: avoid spdlog runtime issues during early injection; write to file manually.
+    // Ensure the log file exists early so users can tail it even if later steps crash.
+    std::error_code ec;
+    std::filesystem::create_directories(m_resolvedLogPath.parent_path(), ec);
+    std::ofstream f(m_resolvedLogPath, std::ios::app);
+    (void)f;
+#endif
 
     if (m_recentSymlink && logPath != m_baseLogPath)
     {
@@ -85,7 +98,14 @@ void Support::SpdlogProvider::OnInitialize()
 void Support::SpdlogProvider::LogInfo(const std::string_view& aMessage)
 {
 #if !defined(_WIN32) && !defined(_WIN64)
-    // macOS: Temporarily skip spdlog and use stderr
+    {
+        std::scoped_lock _{m_logMutex};
+        if (!m_resolvedLogPath.empty())
+        {
+            std::ofstream f(m_resolvedLogPath, std::ios::app);
+            f << "[INFO] " << aMessage << "\n";
+        }
+    }
     std::cerr << "[TweakXL INFO] " << aMessage << std::endl;
 #else
     spdlog::default_logger_raw()->info(aMessage);
@@ -95,6 +115,14 @@ void Support::SpdlogProvider::LogInfo(const std::string_view& aMessage)
 void Support::SpdlogProvider::LogWarning(const std::string_view& aMessage)
 {
 #if !defined(_WIN32) && !defined(_WIN64)
+    {
+        std::scoped_lock _{m_logMutex};
+        if (!m_resolvedLogPath.empty())
+        {
+            std::ofstream f(m_resolvedLogPath, std::ios::app);
+            f << "[WARN] " << aMessage << "\n";
+        }
+    }
     std::cerr << "[TweakXL WARN] " << aMessage << std::endl;
 #else
     spdlog::default_logger_raw()->warn(aMessage);
@@ -104,6 +132,14 @@ void Support::SpdlogProvider::LogWarning(const std::string_view& aMessage)
 void Support::SpdlogProvider::LogError(const std::string_view& aMessage)
 {
 #if !defined(_WIN32) && !defined(_WIN64)
+    {
+        std::scoped_lock _{m_logMutex};
+        if (!m_resolvedLogPath.empty())
+        {
+            std::ofstream f(m_resolvedLogPath, std::ios::app);
+            f << "[ERROR] " << aMessage << "\n";
+        }
+    }
     std::cerr << "[TweakXL ERROR] " << aMessage << std::endl;
 #else
     spdlog::default_logger_raw()->error(aMessage);
@@ -113,6 +149,14 @@ void Support::SpdlogProvider::LogError(const std::string_view& aMessage)
 void Support::SpdlogProvider::LogDebug(const std::string_view& aMessage)
 {
 #if !defined(_WIN32) && !defined(_WIN64)
+    {
+        std::scoped_lock _{m_logMutex};
+        if (!m_resolvedLogPath.empty())
+        {
+            std::ofstream f(m_resolvedLogPath, std::ios::app);
+            f << "[DEBUG] " << aMessage << "\n";
+        }
+    }
     std::cerr << "[TweakXL DEBUG] " << aMessage << std::endl;
 #else
     spdlog::default_logger_raw()->debug(aMessage);

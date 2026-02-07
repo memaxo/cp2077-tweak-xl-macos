@@ -41,6 +41,7 @@ public:
 
 protected:
     void OnBootstrap() override;
+    void OnShutdown() override;
     void CreateTweaksDir();
     void EnsureRuntimeAccess();
     void ApplyPatches();

@@ -4,6 +4,14 @@
 
 This is a macOS-only fork of TweakXL for Cyberpunk 2077, enabling YAML/RED tweak mods on Apple Silicon Macs.
 
+## Status
+
+For the current port status and the “after game update” workflow entry points, see:
+
+- `docs/STATUS.md`
+- `docs/ADDRESS_UPDATE_GUIDE.md`
+- `docs/MACOS_ADDRESS_DISCOVERY.md`
+
 ## Requirements
 
 - macOS 14+ (Sonoma) on Apple Silicon (M1/M2/M3)

@@ -48,7 +48,20 @@ target_include_directories(pegtl INTERFACE "${CMAKE_SOURCE_DIR}/vendor/pegtl/inc
 
 # RED4ext.SDK (header-only for macOS)
 add_library(RED4ext.SDK INTERFACE)
-target_include_directories(RED4ext.SDK INTERFACE "${CMAKE_SOURCE_DIR}/vendor/RED4ext.SDK/include")
+
+# Prefer a workspace checkout of RED4ext.SDK (for the macOS port) when available,
+# but keep the vendored SDK as a fallback for standalone builds.
+set(RED4EXT_SDK_VENDOR_DIR "${CMAKE_SOURCE_DIR}/vendor/RED4ext.SDK/include")
+set(RED4EXT_SDK_WORKSPACE_DIR "${CMAKE_SOURCE_DIR}/../RED4ext.SDK/include")
+
+if(EXISTS "${RED4EXT_SDK_WORKSPACE_DIR}/RED4ext/RED4ext.hpp")
+    message(STATUS "Using workspace RED4ext.SDK headers: ${RED4EXT_SDK_WORKSPACE_DIR}")
+    target_include_directories(RED4ext.SDK INTERFACE "${RED4EXT_SDK_WORKSPACE_DIR}")
+else()
+    message(STATUS "Using vendored RED4ext.SDK headers: ${RED4EXT_SDK_VENDOR_DIR}")
+endif()
+
+target_include_directories(RED4ext.SDK INTERFACE "${RED4EXT_SDK_VENDOR_DIR}")
 
 # Platform-specific dependencies
 if(NOT APPLE)

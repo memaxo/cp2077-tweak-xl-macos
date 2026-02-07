@@ -10,11 +10,46 @@ constexpr auto BaseStatCount = static_cast<uint32_t>(Red::game::data::StatType::
 constexpr auto InvalidStat = static_cast<uint32_t>(Red::game::data::StatType::Invalid);
 
 bool s_statTypesModified = false;
+bool s_statsHookInstalled = false;
 }
 
 void App::StatService::OnBootstrap()
 {
-    HookAfter<Raw::StatsDataSystem::InitializeRecords>(&OnInitializeStats).OrThrow();
+    // Prevent double-initialization (game calls Main twice)
+    if (s_statsHookInstalled)
+    {
+        return;
+    }
+    
+    // Stats hooks are optional on macOS - addresses may not be available
+    // TweakXL core functionality works without stats modification support
+    auto result = HookAfter<Raw::StatsDataSystem::InitializeRecords>(&OnInitializeStats);
+    if (!result)
+    {
+        LogWarning("StatService: Stats hooks unavailable (address not found). "
+                   "Custom stat types will not be supported.");
+    }
+    else
+    {
+        s_statsHookInstalled = true;
+        LogInfo("StatService: Stats hooks installed successfully. Custom stat types enabled.");
+    }
+}
+
+void App::StatService::OnShutdown()
+{
+    // Detach all stats hooks (best-effort).
+    Unhook<Raw::StatsDataSystem::InitializeRecords>();
+
+    if (s_statTypesModified)
+    {
+        Unhook<Raw::StatsDataSystem::GetStatRange>();
+        Unhook<Raw::StatsDataSystem::GetStatFlags>();
+        Unhook<Raw::StatsDataSystem::CheckStatFlag>();
+    }
+
+    s_statTypesModified = false;
+    s_statsHookInstalled = false;
 }
 
 void App::StatService::OnInitializeStats(void* aSystem)

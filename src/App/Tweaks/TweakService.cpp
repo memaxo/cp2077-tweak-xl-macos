@@ -22,7 +22,7 @@ void App::TweakService::OnBootstrap()
 {
     CreateTweaksDir();
 
-    HookAfter<Raw::TryLoadTweakDB>([&](bool& aSuccess) {
+    auto hookTryLoad = HookAfter<Raw::TryLoadTweakDB>([&](bool& aSuccess) {
         if (aSuccess)
         {
             m_reflection = Core::MakeShared<Red::TweakDBReflection>();
@@ -41,10 +41,28 @@ void App::TweakService::OnBootstrap()
         }
     });
 
-    HookAfter<Raw::InitTweakDB>([&]() {
+    hookTryLoad.OrThrow("Failed to hook TryLoadTweakDB.");
+
+    auto hookInit = HookAfter<Raw::InitTweakDB>([&]() {
         EnsureRuntimeAccess();
         CheckForIssues();
     });
+    hookInit.OrThrow("Failed to hook InitTweakDB.");
+}
+
+void App::TweakService::OnShutdown()
+{
+    // Detach hooks first to avoid callbacks into partially torn-down state.
+    Unhook<Raw::TryLoadTweakDB>();
+    Unhook<Raw::InitTweakDB>();
+
+    // Release runtime state.
+    m_executor.reset();
+    m_importer.reset();
+    m_changelog.reset();
+    m_context.reset();
+    m_manager.reset();
+    m_reflection.reset();
 }
 
 void App::TweakService::LoadTweaks(bool aCheckForIssues)

@@ -70,6 +70,7 @@ For documentation, see the original TweakXL wiki:
 
 ## macOS-Specific Docs
 
+- [docs/STATUS.md](docs/STATUS.md) - Current port status + “what to update” pointers
 - [README_MACOS.md](README_MACOS.md) - Full macOS guide
 - [MACOS_CHANGES.md](MACOS_CHANGES.md) - Technical changes from Windows version
 

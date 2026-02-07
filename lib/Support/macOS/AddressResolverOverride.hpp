@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <mach-o/dyld.h>
+#include <iostream>
 
 namespace RED4ext::Detail
 {
@@ -63,24 +64,29 @@ struct AddressResolverOverride<uint32_t> : std::true_type
             { 326438016, 0x2B7D228 },
             
             // StatsDataSystem_InitializeRecords (hash: 1299190886 = 0x4D6E8066)
-            // TENTATIVE - stats system initialization
-            { 1299190886, 0x1E00000 },
+            // DISCOVERED: Medium function at 0x3a939b8 that works with TweakDB records (offset 0xD8)
+            // Matches initialization pattern for stat records
+            { 1299190886, 0x3A939B8 },
             
             // StatsDataSystem_InitializeParams (hash: 3652194890 = 0xD9B5924A)
-            // TENTATIVE - stats params init
-            { 3652194890, 0x1E00100 },
+            // DISCOVERED: Large function at 0x3a932c4 working with both records (0xD8) and params (0xE8)
+            // Called to initialize stat parameter arrays
+            { 3652194890, 0x3A932C4 },
             
             // StatsDataSystem_GetStatRange (hash: 1444748215 = 0x5620D3B7)
-            // TENTATIVE - stat range getter
-            { 1444748215, 0x1E00200 },
+            // DISCOVERED: Small function at 0x3a94744, uses LDP to load pair (min/max floats)
+            // Signature: uint64_t* (*)(void*, uint64_t*, uint32_t)
+            { 1444748215, 0x3A94744 },
             
             // StatsDataSystem_GetStatFlags (hash: 3123320294 = 0xBA1CE5E6)
-            // TENTATIVE - stat flags getter
-            { 3123320294, 0x1E00300 },
+            // DISCOVERED: Small function at 0x3a93f00, returns W0 (32-bit flags)
+            // Signature: uint32_t (*)(void*, uint32_t)
+            { 3123320294, 0x3A93F00 },
             
             // StatsDataSystem_CheckStatFlag (hash: 2954893634 = 0xB01D2542)
-            // TENTATIVE - stat flag checker
-            { 2954893634, 0x1E00400 },
+            // DISCOVERED: Small function at 0x3a93e7c with comparison and conditional return
+            // Signature: bool (*)(void*, uint32_t, uint32_t)
+            { 2954893634, 0x3A93E7C },
             
             // =========================================================================
             // SDK Required Addresses (from RED4ext.SDK AddressHashes.hpp)
@@ -97,14 +103,24 @@ struct AddressResolverOverride<uint32_t> : std::true_type
         {
             if (it->second == 0)
             {
-                // Placeholder address - return 0 to indicate not found
-                // This will cause the calling code to handle the missing address
+                // Placeholder address - log actionable warning
+                std::cerr << "[TweakXL::AddressResolver] WARNING: Hash 0x" << std::hex << aHash 
+                          << std::dec << " is a placeholder (offset 0x0)" << std::endl;
+                std::cerr << "  -> Update lib/Support/macOS/AddressResolverOverride.hpp with discovered offset" << std::endl;
                 return 0;
             }
-            return imageBase + it->second;
+            uintptr_t resolved = imageBase + it->second;
+            std::cerr << "[TweakXL::AddressResolver] Resolved 0x" << std::hex << aHash 
+                      << " -> 0x" << resolved << std::dec << " (offset: 0x" << std::hex 
+                      << it->second << std::dec << ")" << std::endl;
+            return resolved;
         }
         
-        // Address not in our table - return 0
+        // Address not in our table - log actionable error
+        std::cerr << "[TweakXL::AddressResolver] ERROR: Unknown hash 0x" << std::hex << aHash 
+                  << std::dec << " (" << aHash << ")" << std::endl;
+        std::cerr << "  -> Add to lib/Support/macOS/AddressResolverOverride.hpp address table" << std::endl;
+        std::cerr << "  -> See docs/MACOS_ADDRESS_DISCOVERY.md for discovery methods" << std::endl;
         return 0;
     }
 };

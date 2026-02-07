@@ -14,6 +14,7 @@ class StatService
 {
 protected:
     void OnBootstrap() override;
+    void OnShutdown() override;
 
     static void OnInitializeStats(void* aSystem);
     static uint64_t* OnGetStatRange(void* aSystem, uint64_t* aRange, uint32_t aStat);
