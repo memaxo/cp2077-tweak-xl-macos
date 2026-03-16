@@ -1,18 +1,24 @@
 # TweakXL macOS Port — Status
 
-> **Last updated:** 2026-02-01  
-> **Target game build:** Cyberpunk 2077 macOS **v2.3.1**  
-> **Target arch:** Apple Silicon (arm64)  
+> **Last updated:** 2026-02-21
+> **Target game build:** Cyberpunk 2077 macOS **v2.3.1**
+> **Target arch:** Apple Silicon (arm64)
+> **Status:** Complete and validated
 
-## Scope
+## What works
 
-This repo is a macOS-only fork/port of TweakXL (psiberx) for Cyberpunk 2077 on Apple Silicon, built as a **RED4ext `.dylib` plugin** and hooked via **Frida Gadget**.
+- **All 7 features bootstrapped** successfully at runtime
+- **3 StatService hooks** installed and active
+- **Custom stat types** enabled
+- **120+ seconds** stable runtime validated
+- **Tweak file loading** from `r6/tweaks/` directory
+- **Record creation** and **TweakDBID derivation** functional
 
-## Key “source of truth” files
+## Key files
 
-- **Address mappings (macOS)**: `lib/Support/macOS/AddressResolverOverride.hpp` (must be included before any RED4ext SDK headers).
-- **Custom hash IDs**: `src/Red/Addresses/Library.hpp` (TweakXL-specific; separate from the SDK’s hashes).
-- **Hook wiring**: `src/main.cpp` and services under `src/App/`.
+- **Address mappings (macOS)**: `lib/Support/macOS/AddressResolverOverride.hpp`
+- **Custom hash IDs**: `src/Red/Addresses/Library.hpp`
+- **Hook wiring**: `src/main.cpp` and services under `src/App/`
 
 ## Quick build / install
 
@@ -23,14 +29,12 @@ make -j"$(sysctl -n hw.ncpu)"
 ```
 
 Copy:
+- `TweakXL.dylib` -> `<game>/red4ext/plugins/TweakXL/`
+- Plugin `Data/` and `Scripts/` folders
 
-- `TweakXL.dylib` → `<game>/red4ext/plugins/TweakXL/`
-- plugin `Data/` and `Scripts/` folders (see `README_MACOS.md`)
+## Address update workflow
 
-## Address update workflow (high level)
-
-Addresses are **game-version specific**. When the game updates, re-discover/update offsets and then validate:
-
+Addresses are game-version specific. When the game updates:
 - See `docs/ADDRESS_UPDATE_GUIDE.md`
 - See `docs/MACOS_ADDRESS_DISCOVERY.md`
 
@@ -38,4 +42,3 @@ Addresses are **game-version specific**. When the game updates, re-discover/upda
 
 - `README_MACOS.md` (full macOS install + layout guide)
 - `MACOS_CHANGES.md` (port deltas vs Windows)
-

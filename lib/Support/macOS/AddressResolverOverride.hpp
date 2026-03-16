@@ -14,8 +14,11 @@
 #include <cstdint>
 #include <type_traits>
 #include <unordered_map>
-#include <mach-o/dyld.h>
+#include <unordered_set>
+#include <mutex>
+#include <cstdlib>
 #include <iostream>
+#include <RED4ext/Relocation.hpp>
 
 namespace RED4ext::Detail
 {
@@ -29,8 +32,14 @@ struct AddressResolverOverride<uint32_t> : std::true_type
 {
     inline static uintptr_t Resolve(uint32_t aHash)
     {
-        // Get image base (cached)
-        static const uintptr_t imageBase = reinterpret_cast<uintptr_t>(_dyld_get_image_header(0));
+        // Use SDK canonical image base resolution.
+        static const uintptr_t imageBase = RED4ext::RelocBase::GetImageBase();
+        static const bool traceEnabled = []() {
+            const char* value = std::getenv("TWEAKXL_ADDR_TRACE");
+            return value && value[0] != '\0' && value[0] != '0';
+        }();
+        static std::mutex traceMutex;
+        static std::unordered_set<uint32_t> tracedHashes;
         
         // Address table mapping hash -> offset from image base
         // These offsets are for Cyberpunk 2077 macOS ARM64 v2.3.1
@@ -110,9 +119,16 @@ struct AddressResolverOverride<uint32_t> : std::true_type
                 return 0;
             }
             uintptr_t resolved = imageBase + it->second;
-            std::cerr << "[TweakXL::AddressResolver] Resolved 0x" << std::hex << aHash 
-                      << " -> 0x" << resolved << std::dec << " (offset: 0x" << std::hex 
-                      << it->second << std::dec << ")" << std::endl;
+            if (traceEnabled)
+            {
+                std::scoped_lock _(traceMutex);
+                if (tracedHashes.insert(aHash).second)
+                {
+                    std::cerr << "[TweakXL::AddressResolver] Resolved 0x" << std::hex << aHash << " -> 0x"
+                              << resolved << std::dec << " (offset: 0x" << std::hex << it->second << std::dec
+                              << ")" << std::endl;
+                }
+            }
             return resolved;
         }
         

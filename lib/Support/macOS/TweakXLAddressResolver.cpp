@@ -1,11 +1,24 @@
 #include "TweakXLAddressResolver.hpp"
-#include <mach-o/dyld.h>
 #include <iostream>
+#include <cstdlib>
+#include <RED4ext/Relocation.hpp>
 
 namespace Support
 {
 
 std::unordered_map<uint32_t, int> TweakXLAddressResolver::s_requestedAddresses;
+
+namespace
+{
+bool IsAddressTraceEnabled()
+{
+    static const bool enabled = []() {
+        const char* value = std::getenv("TWEAKXL_ADDR_TRACE");
+        return value && value[0] != '\0' && value[0] != '0';
+    }();
+    return enabled;
+}
+}
 
 TweakXLAddressResolver::TweakXLAddressResolver()
 {
@@ -16,12 +29,15 @@ void TweakXLAddressResolver::OnInitialize()
 {
     // Set this resolver as the default for Core::AddressResolver
     AddressResolver::SetDefault(*this);
-    std::cerr << "[TweakXLAddressResolver] Registered as default address resolver" << std::endl;
+    if (IsAddressTraceEnabled())
+    {
+        std::cerr << "[TweakXLAddressResolver] Registered as default address resolver" << std::endl;
+    }
 }
 
 uintptr_t TweakXLAddressResolver::GetImageBase()
 {
-    static const uintptr_t base = reinterpret_cast<uintptr_t>(_dyld_get_image_header(0));
+    static const uintptr_t base = RED4ext::RelocBase::GetImageBase();
     return base;
 }
 
@@ -99,8 +115,11 @@ void TweakXLAddressResolver::InitializeAddressTable()
     // CONFIRMED: From SDK address resolution
     m_addressTable[405668637] = 0x94FE44;
     
-    std::cerr << "[TweakXLAddressResolver] Initialized with " << m_addressTable.size() 
-              << " address mappings (some may be placeholders)" << std::endl;
+    if (IsAddressTraceEnabled())
+    {
+        std::cerr << "[TweakXLAddressResolver] Initialized with " << m_addressTable.size()
+                  << " address mappings (some may be placeholders)" << std::endl;
+    }
 }
 
 uintptr_t TweakXLAddressResolver::ResolveAddress(uint32_t aAddressID)
@@ -122,8 +141,11 @@ uintptr_t TweakXLAddressResolver::ResolveAddress(uint32_t aAddressID)
         }
         
         uintptr_t resolved = GetImageBase() + offset;
-        std::cerr << "[TweakXLAddressResolver] Resolved 0x" << std::hex << aAddressID 
-                  << " -> 0x" << resolved << std::dec << std::endl;
+        if (IsAddressTraceEnabled())
+        {
+            std::cerr << "[TweakXLAddressResolver] Resolved 0x" << std::hex << aAddressID << " -> 0x" << resolved
+                      << std::dec << std::endl;
+        }
         return resolved;
     }
     

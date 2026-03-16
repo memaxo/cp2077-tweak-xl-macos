@@ -1,19 +1,44 @@
 #include "Application.hpp"
 #include <iostream>
+#include <cstdlib>
+
+namespace
+{
+bool IsBootTraceEnabled()
+{
+    static const bool enabled = []() {
+        const char* value = std::getenv("TWEAKXL_BOOT_TRACE");
+        return value && value[0] != '\0' && value[0] != '0';
+    }();
+    return enabled;
+}
+
+void BootTrace(const char* aMessage)
+{
+    if (IsBootTraceEnabled())
+    {
+        std::cerr << "[Core::Application] " << aMessage << std::endl;
+    }
+}
+}
 
 void Core::Application::Bootstrap()
 {
-    std::cerr << "[Core::Application] Bootstrap starting..." << std::endl;
+    BootTrace("Bootstrap starting...");
     
     if (m_booted)
     {
-        std::cerr << "[Core::Application] Already booted, returning" << std::endl;
+        BootTrace("Already booted, returning");
         return;
     }
 
     if (!s_discoveryCallbacks.empty())
     {
-        std::cerr << "[Core::Application] Processing " << s_discoveryCallbacks.size() << " discovery callbacks" << std::endl;
+        if (IsBootTraceEnabled())
+        {
+            std::cerr << "[Core::Application] Processing " << s_discoveryCallbacks.size() << " discovery callbacks"
+                      << std::endl;
+        }
         for (const auto& callback : s_discoveryCallbacks)
         {
             callback(*this);
@@ -23,21 +48,27 @@ void Core::Application::Bootstrap()
 
     m_booted = true;
 
-    std::cerr << "[Core::Application] Calling OnStarting..." << std::endl;
+    BootTrace("Calling OnStarting...");
     OnStarting();
 
-    std::cerr << "[Core::Application] Bootstrapping " << GetRegistered().size() << " features..." << std::endl;
+    if (IsBootTraceEnabled())
+    {
+        std::cerr << "[Core::Application] Bootstrapping " << GetRegistered().size() << " features..." << std::endl;
+    }
     int featureIdx = 0;
     for (const auto& feature : GetRegistered())
     {
-        std::cerr << "[Core::Application] Bootstrapping feature #" << featureIdx++ << std::endl;
+        if (IsBootTraceEnabled())
+        {
+            std::cerr << "[Core::Application] Bootstrapping feature #" << featureIdx++ << std::endl;
+        }
         feature->OnBootstrap();
     }
 
-    std::cerr << "[Core::Application] Calling OnStarted..." << std::endl;
+    BootTrace("Calling OnStarted...");
     OnStarted();
     
-    std::cerr << "[Core::Application] Bootstrap complete!" << std::endl;
+    BootTrace("Bootstrap complete");
 }
 
 void Core::Application::Shutdown()

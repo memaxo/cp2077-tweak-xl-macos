@@ -3,11 +3,29 @@
 #include "Core/Facades/Hook.hpp"
 #include "Core/Facades/Runtime.hpp"
 #include <iostream>
+#include <cstdlib>
 
 namespace
 {
 Core::UniquePtr<App::Application> g_app;
 bool g_initialized = false;  // Guard against double initialization
+
+bool IsBootTraceEnabled()
+{
+    static const bool enabled = []() {
+        const char* value = std::getenv("TWEAKXL_BOOT_TRACE");
+        return value && value[0] != '\0' && value[0] != '0';
+    }();
+    return enabled;
+}
+
+void BootTrace(const char* aMessage)
+{
+    if (IsBootTraceEnabled())
+    {
+        std::cerr << "[TweakXL] " << aMessage << std::endl;
+    }
+}
 }
 
 // RED4ext
@@ -16,7 +34,10 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
                                         const RED4ext::Sdk* aSdk)
 {
     try {
-        std::cerr << "[TweakXL] Main called with reason: " << static_cast<int>(aReason) << std::endl;
+        if (IsBootTraceEnabled())
+        {
+            std::cerr << "[TweakXL] Main called with reason: " << static_cast<int>(aReason) << std::endl;
+        }
         
         switch (aReason)
         {
@@ -25,16 +46,16 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
             // Guard against double initialization
             if (g_initialized)
             {
-                std::cerr << "[TweakXL] Already initialized, skipping duplicate Load" << std::endl;
+                BootTrace("Already initialized, skipping duplicate Load");
                 return true;
             }
             g_initialized = true;
             
-            std::cerr << "[TweakXL] Creating Application..." << std::endl;
+            BootTrace("Creating Application...");
             g_app = Core::MakeUnique<App::Application>(aHandle, aSdk);
-            std::cerr << "[TweakXL] Application created, calling Bootstrap..." << std::endl;
+            BootTrace("Application created, calling Bootstrap...");
             g_app->Bootstrap();
-            std::cerr << "[TweakXL] Bootstrap complete" << std::endl;
+            BootTrace("Bootstrap complete");
             break;
         }
         case RED4ext::EMainReason::Unload:
@@ -42,15 +63,15 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
             // Guard against double shutdown
             if (!g_initialized || !g_app)
             {
-                std::cerr << "[TweakXL] Not initialized or already shut down, skipping" << std::endl;
+                BootTrace("Not initialized or already shut down, skipping");
                 return true;
             }
             g_initialized = false;
             
-            std::cerr << "[TweakXL] Shutting down..." << std::endl;
+            BootTrace("Shutting down...");
             g_app->Shutdown();
             g_app = nullptr;
-            std::cerr << "[TweakXL] Shutdown complete" << std::endl;
+            BootTrace("Shutdown complete");
             break;
         }
         }

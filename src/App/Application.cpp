@@ -18,6 +18,27 @@
 #endif
 
 #include <iostream>
+#include <cstdlib>
+
+namespace
+{
+bool IsBootTraceEnabled()
+{
+    static const bool enabled = []() {
+        const char* value = std::getenv("TWEAKXL_BOOT_TRACE");
+        return value && value[0] != '\0' && value[0] != '0';
+    }();
+    return enabled;
+}
+
+void BootTrace(const char* aMessage)
+{
+    if (IsBootTraceEnabled())
+    {
+        std::cerr << "[TweakXL::App] " << aMessage << std::endl;
+    }
+}
+}
 
 #if defined(_WIN32) || defined(_WIN64)
 App::Application::Application(HMODULE aHandle, const RED4ext::Sdk* aSdk)
@@ -25,7 +46,7 @@ App::Application::Application(HMODULE aHandle, const RED4ext::Sdk* aSdk)
 App::Application::Application(void* aHandle, const RED4ext::Sdk* aSdk)
 #endif
 {
-    std::cerr << "[TweakXL::App] Step 1: RuntimeProvider..." << std::endl;
+    BootTrace("Step 1: RuntimeProvider...");
     Register<Core::RuntimeProvider>(aHandle)
         ->SetBaseImagePathDepth(2);
 
@@ -33,7 +54,7 @@ App::Application::Application(void* aHandle, const RED4ext::Sdk* aSdk)
     Register<Support::MinHookProvider>();
 #endif
 
-    std::cerr << "[TweakXL::App] Step 2: SpdlogProvider..." << std::endl;
+    BootTrace("Step 2: SpdlogProvider...");
     Register<Support::SpdlogProvider>()
         ->AppendTimestampToLogName()
         ->CreateRecentLogSymlink();
@@ -44,15 +65,15 @@ App::Application::Application(void* aHandle, const RED4ext::Sdk* aSdk)
         ->EnableAddressLibrary()
         ->RegisterScripts(Env::PluginScriptsDir());
 #else
-    std::cerr << "[TweakXL::App] Step 3: TweakXLAddressResolver..." << std::endl;
+    BootTrace("Step 3: TweakXLAddressResolver...");
     // macOS: Use custom address resolver (SDK's resolver requires 126+ addresses we don't have)
     Register<Support::TweakXLAddressResolver>();
     
-    std::cerr << "[TweakXL::App] Step 3b: MacOSHookingProvider..." << std::endl;
+    BootTrace("Step 3b: MacOSHookingProvider...");
     // macOS: Use hooking provider that forwards to RED4ext's SDK
     Register<Support::MacOSHookingProvider>(aHandle, aSdk);
     
-    std::cerr << "[TweakXL::App] Step 4: RED4extProvider..." << std::endl;
+    BootTrace("Step 4: RED4extProvider...");
     Register<Support::RED4extProvider>(aHandle, aSdk)
         ->RegisterScripts(Env::PluginScriptsDir());
 #endif
@@ -61,29 +82,23 @@ App::Application::Application(void* aHandle, const RED4ext::Sdk* aSdk)
     Register<Support::RedLibProvider>();
 #endif
 
-    std::cerr << "[TweakXL::App] Step 5: TweakService..." << std::endl;
+    BootTrace("Step 5: TweakService...");
     Register<App::TweakService>(Env::GameVer(), Env::GameDir(), Env::TweaksDir(),
                                 Env::InheritanceMapPath(), Env::ExtraFlatsPath(),
                                 Env::RedModSourcesDir());
     
-    std::cerr << "[TweakXL::App] Step 6: StatService..." << std::endl;
+    BootTrace("Step 6: StatService...");
     Register<App::StatService>();
     
-    std::cerr << "[TweakXL::App] Construction complete!" << std::endl;
+    BootTrace("Construction complete");
 }
 
 void App::Application::OnStarting()
 {
-    std::cerr << "[TweakXL::App::OnStarting] Starting..." << std::endl;
-    
     try {
-        std::cerr << "[TweakXL::App::OnStarting] Trying simple LogInfo..." << std::endl;
-        LogInfo("TweakXL is starting...");  // Use simple string instead of format
-        
-        std::cerr << "[TweakXL::App::OnStarting] Calling Migration::CleanUp..." << std::endl;
+        LogInfo("TweakXL is starting...");
+        BootTrace("OnStarting: Migration::CleanUp");
         Migration::CleanUp(Env::LegacyScriptsDir());
-        
-        std::cerr << "[TweakXL::App::OnStarting] Complete!" << std::endl;
     }
     catch (const std::exception& e) {
         std::cerr << "[TweakXL::App::OnStarting] Exception: " << e.what() << std::endl;
